@@ -1,6 +1,6 @@
-streamlit==1.38.0
-ultralytics==8.3.25
-opencv-python-headless==4.10.0.84
+streamlit
+ultralytics
+opencv-python-headless
 pillow
 matplotlib
 numpy
