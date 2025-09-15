@@ -1,40 +1,26 @@
 # app_streamlit.py
+import subprocess
+import sys
+
+# Ensure ultralytics is installed
+try:
+    from ultralytics import YOLO
+except ImportError:
+    subprocess.check_call([
+        sys.executable, "-m", "pip", "install",
+        "ultralytics==8.3.25", "opencv-python-headless"
+    ])
+    from ultralytics import YOLO
+
 import streamlit as st
+import numpy as np
 from PIL import Image
+import cv2
 import tempfile
 import os
 import glob
 import pandas as pd
 from pathlib import Path
-
-# Set environment variables to prevent issues
-os.environ['OPENCV_IO_ENABLE_OPENEXR'] = '0'
-os.environ['NUMPY_DISABLE_WARNING'] = '1'
-
-# Import numpy first with error handling
-try:
-    import numpy as np
-    # Suppress numpy warnings about compatibility
-    import warnings
-    warnings.filterwarnings('ignore', category=UserWarning, module='numpy')
-except ImportError as e:
-    st.error(f"Numpy import failed: {e}")
-    st.stop()
-
-# Import with error handling
-try:
-    import cv2
-    # Force OpenCV to use a headless backend
-    cv2.setUseOptimized(True)
-except ImportError as e:
-    st.error(f"OpenCV import failed: {e}")
-    st.stop()
-
-try:
-    from ultralytics import YOLO
-except ImportError as e:
-    st.error(f"Ultralytics import failed: {e}")
-    st.stop()
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="AI Object Detection",
@@ -71,11 +57,10 @@ st.markdown(
 
     /* Animated Background */
     .stApp {
-        background: 
-            radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, rgba(138, 43, 226, 0.05) 0%, transparent 50%),
-            linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+        background: radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                   radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.1) 0%, transparent 50%),
+                   radial-gradient(circle at 40% 40%, rgba(138, 43, 226, 0.05) 0%, transparent 50%),
+                   linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
         background-attachment: fixed;
         min-height: 100vh;
         position: relative;
@@ -106,10 +91,7 @@ st.markdown(
 
     /* Header Styling */
     .main-header {
-        background: linear-gradient(135deg, 
-            rgba(0, 212, 255, 0.1) 0%, 
-            rgba(255, 107, 107, 0.05) 50%, 
-            rgba(138, 43, 226, 0.1) 100%);
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(255, 107, 107, 0.05) 50%, rgba(138, 43, 226, 0.1) 100%);
         backdrop-filter: blur(20px);
         border: 1px solid rgba(0, 212, 255, 0.3);
         border-radius: 24px;
@@ -157,9 +139,7 @@ st.markdown(
 
     /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, 
-            rgba(15, 15, 35, 0.95) 0%, 
-            rgba(26, 26, 46, 0.95) 100%);
+        background: linear-gradient(180deg, rgba(15, 15, 35, 0.95) 0%, rgba(26, 26, 46, 0.95) 100%);
         backdrop-filter: blur(20px);
         border-right: 1px solid var(--card-border);
     }
@@ -528,17 +508,17 @@ st.sidebar.markdown(
 
 st.sidebar.markdown("### 🎛️ Model Configuration")
 uploaded_weights = st.sidebar.file_uploader("Upload custom weights (.pt)", type=[
-                                            "pt"], help="Upload your trained YOLOv8 model weights")
+    "pt"], help="Upload your trained YOLOv8 model weights")
 
 st.sidebar.markdown("### 🎯 Detection Settings")
 conf = st.sidebar.slider("Confidence threshold", 0.0, 1.0,
                          0.4, 0.01, help="Minimum confidence for detections")
 img_size = st.sidebar.selectbox("Image size (px)", [
-                                320, 416, 640, 1280], index=2, help="Input image size for inference")
+    320, 416, 640, 1280], index=2, help="Input image size for inference")
 
-st.sidebar.markdown("### � Performance Metrics")
+st.sidebar.markdown("### 📊 Performance Metrics")
 st.sidebar.info(
-    "**🧠 Model:** YOLOv8 Nano  \n**📊 Classes:** 80 COCO objects  \n**⚡ Speed:** Real-time  \n**🎯 Accuracy:** High precision")
+    "**🧠 Model:** YOLOv8 Nano \n**📊 Classes:** 80 COCO objects \n**⚡ Speed:** Real-time \n**🎯 Accuracy:** High precision")
 
 # -------------------- LOAD MODEL --------------------
 
@@ -601,17 +581,17 @@ st.markdown(
 
 mode = st.radio(
     "Detection Mode",
-    ["� Image Analysis", "� Video Processing", "� Live Camera"],
+    ["📷 Image Analysis", "🎥 Video Processing"],
     horizontal=True,
     help="Select the type of input you want to process"
 )
 
 # IMAGE MODE
-if mode == "� Image Analysis":
+if mode == "📷 Image Analysis":
     st.markdown(
         """
         <div class="content-card">
-            <h3>� Image Analysis Engine</h3>
+            <h3>🔍 Image Analysis Engine</h3>
             <p>Upload high-resolution images for precise object detection and analysis</p>
         </div>
         """,
@@ -619,10 +599,10 @@ if mode == "� Image Analysis":
     )
 
     uploaded = st.file_uploader("📎 Drop your image here", type=[
-                                "jpg", "jpeg", "png"], help="Supported: JPG, JPEG, PNG (Max: 200MB)")
+        "jpg", "jpeg", "png"], help="Supported: JPG, JPEG, PNG (Max: 200MB)")
 
     if uploaded:
-        with st.spinner("� AI is analyzing your image..."):
+        with st.spinner("🤖 AI is analyzing your image..."):
             img = Image.open(uploaded).convert("RGB")
             results = model.predict(np.array(img), conf=conf, imgsz=img_size)
             annotated, df = annotate_and_table(results, model)
@@ -700,11 +680,11 @@ if mode == "� Image Analysis":
                 )
 
 # VIDEO MODE
-elif mode == "� Video Processing":
+elif mode == "🎥 Video Processing":
     st.markdown(
         """
         <div class="content-card">
-            <h3>� Video Processing Engine</h3>
+            <h3>🎬 Video Processing Engine</h3>
             <p>Upload video files for advanced frame-by-frame object detection and analysis</p>
         </div>
         """,
@@ -712,7 +692,7 @@ elif mode == "� Video Processing":
     )
 
     uploaded_vid = st.file_uploader("🎥 Drop your video here", type=[
-                                    "mp4", "mov", "avi", "mkv"], help="Supported: MP4, MOV, AVI, MKV (Max: 500MB)")
+        "mp4", "mov", "avi", "mkv"], help="Supported: MP4, MOV, AVI, MKV (Max: 500MB)")
 
     if uploaded_vid:
         tmp = save_uploaded_file(uploaded_vid)
@@ -766,7 +746,7 @@ elif mode == "� Video Processing":
                             col_a, col_b = st.columns(2)
                             with col_a:
                                 st.download_button(
-                                    label="� Download Enhanced Video",
+                                    label="💾 Download Enhanced Video",
                                     data=open(vids[0], 'rb').read(),
                                     file_name=f"ai_enhanced_{uploaded_vid.name}",
                                     mime="video/mp4",
@@ -787,129 +767,6 @@ elif mode == "� Video Processing":
                         st.info(
                             "💡 Try using a smaller video file or different format")
 
-# WEBCAM MODE
-elif mode == "� Live Camera":
-    st.markdown(
-        """
-        <div class="content-card">
-            <h3>� Real-time AI Camera</h3>
-            <p>Experience live object detection with your camera feed in real-time</p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    col1, col2 = st.columns([3, 1])
-
-    with col2:
-        st.markdown("#### 🎮 Camera Controls")
-        start_webcam = st.button(
-            "� Start Live Detection", use_container_width=True)
-        stop_webcam = st.button("⏹ Stop Camera", use_container_width=True)
-
-        st.markdown("#### 📊 Live Analytics")
-        fps_placeholder = st.empty()
-        detection_placeholder = st.empty()
-        confidence_placeholder = st.empty()
-
-        st.markdown("#### ⚙️ Quick Settings")
-        live_conf = st.slider("Live Confidence", 0.1, 1.0, conf, 0.05)
-
-    with col1:
-        if start_webcam:
-            st.markdown(
-                """
-                <div class="content-card" style="border: 2px solid var(--accent-color); text-align: center;">
-                    <h4>🔴 LIVE DETECTION ACTIVE</h4>
-                    <p>AI is analyzing your camera feed in real-time</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-            cap = cv2.VideoCapture(0)
-
-            if not cap.isOpened():
-                st.error(
-                    "❌ Camera access denied. Please check your camera permissions and try again.")
-                st.info("💡 Make sure no other application is using your camera")
-            else:
-                stframe = st.empty()
-                frame_count = 0
-                total_detections = 0
-                confidence_sum = 0
-
-                while True:
-                    ret, frame = cap.read()
-                    if not ret:
-                        st.warning("⚠️ Camera connection lost")
-                        break
-
-                    frame_count += 1
-                    results = model.predict(
-                        frame, conf=live_conf, imgsz=img_size)
-                    annotated, df = annotate_and_table(results, model)
-
-                    if annotated is not None:
-                        # Add frame overlay with stats
-                        overlay_frame = annotated.copy()
-                        stframe.image(overlay_frame, channels="RGB",
-                                      use_column_width=True)
-
-                    # Update live statistics
-                    current_detections = len(df) if not df.empty else 0
-                    total_detections += current_detections
-
-                    if not df.empty:
-                        confidence_sum += df['Confidence'].mean()
-
-                    with col2:
-                        fps_placeholder.markdown(
-                            f"""
-                            <div class="metric-card">
-                                <h4>📹 Frames</h4>
-                                <h2 style="color: var(--accent-color);">{frame_count}</h2>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-
-                        detection_placeholder.markdown(
-                            f"""
-                            <div class="metric-card">
-                                <h4>🎯 Current Objects</h4>
-                                <h2 style="color: var(--accent-secondary);">{current_detections}</h2>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-
-                        if total_detections > 0:
-                            avg_conf = confidence_sum / max(1, frame_count)
-                            confidence_placeholder.markdown(
-                                f"""
-                                <div class="metric-card">
-                                    <h4>📈 Avg Confidence</h4>
-                                    <h2 style="color: var(--accent-color);">{avg_conf:.2f}</h2>
-                                </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
-
-                    if stop_webcam:
-                        break
-
-                cap.release()
-                st.markdown(
-                    """
-                    <div class="content-card" style="text-align: center;">
-                        <h4>✅ Live Session Ended</h4>
-                        <p>Camera disconnected successfully</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
 # -------------------- FOOTER --------------------
 st.markdown("---")
 st.markdown(
@@ -918,7 +775,7 @@ st.markdown(
         <h4>🚀 AI Vision Studio</h4>
         <p>Powered by YOLOv8 • Built with Streamlit • Next-gen Computer Vision Technology</p>
         <p style="font-size: 0.9rem; color: var(--text-secondary);">
-            � Experience the future of AI • 🌐 <a href="#" style="color: var(--accent-color);">Documentation</a> • 📧 <a href="#" style="color: var(--accent-secondary);">Support</a>
+            ✨ Experience the future of AI • 🌐 <a href="#" style="color: var(--accent-color);">Documentation</a> • 📧 <a href="#" style="color: var(--accent-secondary);">Support</a>
         </p>
         <div style="margin-top: 1rem;">
             <span style="color: var(--accent-color);">●</span>
