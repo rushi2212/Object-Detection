@@ -1,5 +1,6 @@
 # app_streamlit.py
-import subprocess, sys
+import subprocess
+import sys
 
 # Ensure ultralytics is installed
 try:
@@ -7,8 +8,7 @@ try:
 except ImportError:
     subprocess.check_call([
         sys.executable, "-m", "pip", "install",
-        "ultralytics==8.3.25",
-        "opencv-python-headless"
+        "ultralytics==8.3.25", "opencv-python-headless"
     ])
     from ultralytics import YOLO
 
@@ -18,13 +18,11 @@ from PIL import Image
 import cv2
 import tempfile
 import os
-import glob
 import pandas as pd
 from pathlib import Path
 
 # -------------------- PAGE CONFIG --------------------
-st.set_page_config(page_title="AI Object Detection",
-                   page_icon="🤖", layout="wide")
+st.set_page_config(page_title="AI Vision Studio", page_icon="🤖", layout="wide")
 
 # -------------------- CUSTOM CSS --------------------
 st.markdown(
@@ -35,16 +33,17 @@ st.markdown(
 
     /* CSS Variables for Theme */
     :root {
-        --primary-bg: #0f0f23;
+        --primary-bg: #0a0a0f;
         --secondary-bg: #1a1a2e;
         --accent-color: #00d4ff;
         --accent-secondary: #ff6b6b;
+        --accent-tertiary: #4ecdc4;
         --text-primary: #ffffff;
         --text-secondary: #a0a0a0;
-        --card-bg: rgba(26, 26, 46, 0.8);
-        --card-border: rgba(0, 212, 255, 0.2);
-        --shadow-primary: 0 8px 32px rgba(0, 212, 255, 0.15);
-        --shadow-secondary: 0 4px 16px rgba(255, 107, 107, 0.1);
+        --card-bg: rgba(26, 26, 46, 0.9);
+        --card-border: rgba(0, 212, 255, 0.3);
+        --shadow-primary: 0 12px 40px rgba(0, 212, 255, 0.2);
+        --shadow-secondary: 0 8px 25px rgba(255, 107, 107, 0.15);
     }
 
     /* Global Styles */
@@ -55,20 +54,20 @@ st.markdown(
         scroll-behavior: smooth;
     }
 
-    /* Animated Background */
+    /* Enhanced Animated Background */
     .stApp {
         background: 
-            radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, rgba(138, 43, 226, 0.05) 0%, transparent 50%),
-            linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            radial-gradient(circle at 15% 85%, rgba(0, 212, 255, 0.15) 0%, transparent 60%),
+            radial-gradient(circle at 85% 15%, rgba(255, 107, 107, 0.12) 0%, transparent 60%),
+            radial-gradient(circle at 50% 50%, rgba(78, 205, 196, 0.08) 0%, transparent 70%),
+            linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%);
         background-attachment: fixed;
         min-height: 100vh;
         position: relative;
         overflow-x: hidden;
     }
 
-    /* Animated particles background */
+    /* Floating particles animation */
     .stApp::before {
         content: '';
         position: fixed;
@@ -77,30 +76,34 @@ st.markdown(
         width: 100%;
         height: 100%;
         background-image: 
-            radial-gradient(circle at 25% 25%, rgba(0, 212, 255, 0.05) 1px, transparent 1px),
-            radial-gradient(circle at 75% 75%, rgba(255, 107, 107, 0.05) 1px, transparent 1px);
-        background-size: 50px 50px;
-        animation: particles 20s linear infinite;
+            radial-gradient(circle at 20% 30%, rgba(0, 212, 255, 0.08) 2px, transparent 2px),
+            radial-gradient(circle at 80% 70%, rgba(255, 107, 107, 0.06) 1px, transparent 1px),
+            radial-gradient(circle at 40% 80%, rgba(78, 205, 196, 0.05) 1.5px, transparent 1.5px);
+        background-size: 80px 80px, 120px 120px, 60px 60px;
+        animation: float 25s linear infinite;
         pointer-events: none;
         z-index: -1;
     }
 
-    @keyframes particles {
-        0% { transform: translate(0, 0); }
-        100% { transform: translate(-50px, -50px); }
+    @keyframes float {
+        0% { transform: translate(0, 0) rotate(0deg); }
+        33% { transform: translate(-30px, -30px) rotate(120deg); }
+        66% { transform: translate(30px, -60px) rotate(240deg); }
+        100% { transform: translate(0, 0) rotate(360deg); }
     }
 
-    /* Header Styling */
+    /* Enhanced Header Styling */
     .main-header {
         background: linear-gradient(135deg, 
-            rgba(0, 212, 255, 0.1) 0%, 
-            rgba(255, 107, 107, 0.05) 50%, 
-            rgba(138, 43, 226, 0.1) 100%);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(0, 212, 255, 0.3);
-        border-radius: 24px;
-        padding: 3rem 2rem;
-        margin: 2rem 0 3rem 0;
+            rgba(0, 212, 255, 0.15) 0%, 
+            rgba(78, 205, 196, 0.1) 30%,
+            rgba(255, 107, 107, 0.08) 70%, 
+            rgba(138, 43, 226, 0.12) 100%);
+        backdrop-filter: blur(25px);
+        border: 2px solid rgba(0, 212, 255, 0.4);
+        border-radius: 28px;
+        padding: 4rem 3rem;
+        margin: 3rem 0 4rem 0;
         text-align: center;
         position: relative;
         overflow: hidden;
@@ -110,53 +113,61 @@ st.markdown(
     .main-header::before {
         content: '';
         position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: conic-gradient(from 0deg, transparent, rgba(0, 212, 255, 0.1), transparent);
-        animation: rotate 8s linear infinite;
+        top: -60%;
+        left: -60%;
+        width: 220%;
+        height: 220%;
+        background: conic-gradient(from 0deg, transparent, rgba(0, 212, 255, 0.15), transparent, rgba(78, 205, 196, 0.1), transparent);
+        animation: spin 12s linear infinite;
         z-index: -1;
     }
 
-    @keyframes rotate {
+    @keyframes spin {
         100% { transform: rotate(360deg); }
     }
 
     .main-header h1 {
-        background: linear-gradient(135deg, #00d4ff 0%, #ff6b6b 50%, #8a2be2 100%);
+        background: linear-gradient(135deg, #00d4ff 0%, #4ecdc4 30%, #ff6b6b 70%, #8a2be2 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 3.5rem;
+        font-size: 4rem;
         font-weight: 700;
         margin: 0;
-        letter-spacing: -0.02em;
-        text-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+        letter-spacing: -0.03em;
+        text-shadow: 0 0 40px rgba(0, 212, 255, 0.4);
+        animation: glow 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+        from { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.3)); }
+        to { filter: drop-shadow(0 0 35px rgba(0, 212, 255, 0.6)); }
     }
 
     .main-header p {
         color: var(--text-secondary) !important;
-        font-size: 1.3rem;
-        margin: 1rem 0 0 0;
+        font-size: 1.4rem;
+        margin: 1.5rem 0 0 0;
         font-weight: 400;
+        opacity: 0.9;
     }
 
-    /* Sidebar Styling */
+    /* Enhanced Sidebar */
     section[data-testid="stSidebar"] {
         background: linear-gradient(180deg, 
-            rgba(15, 15, 35, 0.95) 0%, 
+            rgba(10, 10, 15, 0.98) 0%, 
             rgba(26, 26, 46, 0.95) 100%);
-        backdrop-filter: blur(20px);
-        border-right: 1px solid var(--card-border);
+        backdrop-filter: blur(25px);
+        border-right: 2px solid var(--card-border);
     }
 
     .sidebar-header {
-        background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-secondary) 100%);
+        background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-tertiary) 50%, var(--accent-secondary) 100%);
         margin: -1rem -1rem 2rem -1rem;
-        padding: 2rem 1rem;
+        padding: 2.5rem 1rem;
         text-align: center;
         position: relative;
         overflow: hidden;
+        border-radius: 0 0 20px 20px;
     }
 
     .sidebar-header::before {
@@ -166,8 +177,8 @@ st.markdown(
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        animation: shimmer 3s infinite;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+        animation: shimmer 4s infinite;
     }
 
     @keyframes shimmer {
@@ -178,22 +189,22 @@ st.markdown(
     .sidebar-header h3 {
         color: white !important;
         margin: 0;
-        font-weight: 600;
-        font-size: 1.3rem;
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        font-weight: 700;
+        font-size: 1.4rem;
+        text-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
     }
 
-    /* Content Cards */
+    /* Enhanced Content Cards */
     .content-card {
         background: var(--card-bg);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--card-border);
-        border-radius: 20px;
-        padding: 2.5rem;
-        margin: 2rem 0;
+        backdrop-filter: blur(25px);
+        border: 2px solid var(--card-border);
+        border-radius: 24px;
+        padding: 3rem;
+        margin: 3rem 0;
         position: relative;
         overflow: hidden;
-        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
         box-shadow: var(--shadow-primary);
     }
 
@@ -203,37 +214,37 @@ st.markdown(
         top: 0;
         left: 0;
         right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, var(--accent-color), var(--accent-secondary));
+        height: 4px;
+        background: linear-gradient(90deg, var(--accent-color), var(--accent-tertiary), var(--accent-secondary));
         transform: scaleX(0);
-        transition: transform 0.4s ease;
+        transition: transform 0.5s ease;
     }
 
     .content-card:hover {
-        transform: translateY(-8px) scale(1.02);
+        transform: translateY(-12px) scale(1.02);
         border-color: var(--accent-color);
-        box-shadow: 0 20px 40px rgba(0, 212, 255, 0.2);
+        box-shadow: 0 25px 50px rgba(0, 212, 255, 0.25);
     }
 
     .content-card:hover::before {
         transform: scaleX(1);
     }
 
-    /* Buttons */
+    /* Enhanced Buttons */
     .stButton button {
-        background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-secondary) 100%);
+        background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-tertiary) 50%, var(--accent-secondary) 100%);
         color: white;
-        font-weight: 600;
-        border-radius: 16px;
+        font-weight: 700;
+        border-radius: 20px;
         border: none;
-        padding: 1rem 2.5rem;
-        font-size: 1.1rem;
-        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+        padding: 1.2rem 3rem;
+        font-size: 1.2rem;
+        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        box-shadow: 0 10px 30px rgba(0, 212, 255, 0.4);
         position: relative;
         overflow: hidden;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
     }
 
     .stButton button::before {
@@ -243,154 +254,65 @@ st.markdown(
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.5s;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
     }
 
     .stButton button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 15px 35px rgba(0, 212, 255, 0.4);
+        transform: translateY(-4px) scale(1.05);
+        box-shadow: 0 20px 40px rgba(0, 212, 255, 0.5);
     }
 
     .stButton button:hover::before {
         left: 100%;
     }
 
-    /* File Uploader */
+    /* Enhanced File Uploader */
     .stFileUploader {
-        background: rgba(0, 212, 255, 0.05);
-        border: 2px dashed var(--accent-color);
-        border-radius: 16px;
-        padding: 3rem;
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.08) 0%, rgba(78, 205, 196, 0.06) 100%);
+        border: 3px dashed var(--accent-color);
+        border-radius: 20px;
+        padding: 4rem 2rem;
         text-align: center;
-        transition: all 0.3s ease;
+        transition: all 0.4s ease;
         position: relative;
+        overflow: hidden;
+    }
+
+    .stFileUploader::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+        transition: left 0.8s;
     }
 
     .stFileUploader:hover {
-        background: rgba(0, 212, 255, 0.1);
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(78, 205, 196, 0.12) 100%);
         transform: scale(1.02);
-        box-shadow: 0 10px 30px rgba(0, 212, 255, 0.2);
+        box-shadow: 0 15px 40px rgba(0, 212, 255, 0.3);
+        border-color: var(--accent-tertiary);
     }
 
-    /* Sliders */
-    .stSlider {
-        background: rgba(0, 212, 255, 0.05);
-        border: 1px solid rgba(0, 212, 255, 0.2);
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        transition: all 0.3s ease;
+    .stFileUploader:hover::before {
+        left: 100%;
     }
 
-    .stSlider:hover {
-        border-color: var(--accent-color);
-        box-shadow: 0 5px 15px rgba(0, 212, 255, 0.1);
-    }
-
-    /* DataFrames */
-    .stDataFrame {
-        background: var(--card-bg);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--card-border);
-        border-radius: 16px;
-        padding: 2rem;
-        box-shadow: var(--shadow-primary);
-        transition: all 0.3s ease;
-    }
-
-    .stDataFrame:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 15px 35px rgba(0, 212, 255, 0.15);
-    }
-
-    /* Text Elements */
-    h1, h2, h3, h4, h5, h6 {
-        color: var(--text-primary) !important;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-    }
-
-    .sidebar h1, .sidebar h2, .sidebar h3, .sidebar h4, .sidebar h5, .sidebar h6 {
-        color: white !important;
-    }
-
-    label, p, span {
-        color: var(--text-secondary) !important;
-        font-weight: 400;
-    }
-
-    .sidebar label, .sidebar p, .sidebar span {
-        color: #e2e8f0 !important;
-    }
-
-    /* Status Messages */
-    .stSuccess {
-        background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-        color: white;
-        border-radius: 16px;
-        border: none;
-        padding: 1.5rem;
-        font-weight: 500;
-        box-shadow: 0 8px 25px rgba(0, 255, 136, 0.3);
-    }
-
-    .stWarning {
-        background: linear-gradient(135deg, #ffb347 0%, #ff8c00 100%);
-        color: white;
-        border-radius: 16px;
-        border: none;
-        padding: 1.5rem;
-        font-weight: 500;
-        box-shadow: 0 8px 25px rgba(255, 140, 0, 0.3);
-    }
-
-    .stError {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-        color: white;
-        border-radius: 16px;
-        border: none;
-        padding: 1.5rem;
-        font-weight: 500;
-        box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
-    }
-
-    .stInfo {
-        background: linear-gradient(135deg, var(--accent-color) 0%, #0099cc 100%);
-        color: white;
-        border-radius: 16px;
-        border: none;
-        padding: 1.5rem;
-        font-weight: 500;
-        box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
-    }
-
-    /* Progress Bar */
-    .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, var(--accent-color), var(--accent-secondary));
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0, 212, 255, 0.3);
-    }
-
-    /* Radio Buttons */
-    .stRadio > div {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin: 1rem 0;
-    }
-
-    /* Metrics */
+    /* Enhanced Metrics */
     .metric-card {
-        background: var(--card-bg);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--card-border);
-        border-radius: 16px;
-        padding: 1.5rem;
+        background: linear-gradient(135deg, var(--card-bg) 0%, rgba(0, 212, 255, 0.05) 100%);
+        backdrop-filter: blur(25px);
+        border: 2px solid var(--card-border);
+        border-radius: 20px;
+        padding: 2rem;
         text-align: center;
-        transition: all 0.3s ease;
+        transition: all 0.4s ease;
         position: relative;
         overflow: hidden;
+        margin: 1rem 0;
     }
 
     .metric-card::before {
@@ -399,49 +321,77 @@ st.markdown(
         top: 0;
         left: 0;
         right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, var(--accent-color), var(--accent-secondary));
+        height: 4px;
+        background: linear-gradient(90deg, var(--accent-color), var(--accent-tertiary), var(--accent-secondary));
     }
 
     .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 35px rgba(0, 212, 255, 0.2);
+        transform: translateY(-8px) scale(1.05);
+        box-shadow: 0 20px 40px rgba(0, 212, 255, 0.25);
     }
 
-    /* Loading Animation */
-    .loading-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 2rem;
-    }
-
-    .loading-spinner {
-        width: 50px;
-        height: 50px;
-        border: 3px solid rgba(0, 212, 255, 0.3);
-        border-radius: 50%;
-        border-top-color: var(--accent-color);
-        animation: spin 1s ease-in-out infinite;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    /* Image Containers */
+    /* Enhanced Image Containers */
     .image-container {
         background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 16px;
-        padding: 1rem;
-        margin: 1rem 0;
-        transition: all 0.3s ease;
+        border: 2px solid var(--card-border);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+        transition: all 0.4s ease;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .image-container::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(45deg, var(--accent-color), var(--accent-tertiary), var(--accent-secondary), var(--accent-color));
+        border-radius: 20px;
+        z-index: -1;
+        opacity: 0;
+        transition: opacity 0.4s ease;
     }
 
     .image-container:hover {
-        transform: scale(1.02);
-        box-shadow: 0 15px 35px rgba(0, 212, 255, 0.15);
+        transform: scale(1.03);
+        box-shadow: 0 20px 40px rgba(0, 212, 255, 0.2);
+    }
+
+    .image-container:hover::before {
+        opacity: 1;
+    }
+
+    /* Enhanced Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 20px;
+        background: rgba(0, 212, 255, 0.05);
+        border-radius: 15px;
+        padding: 10px;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        background: transparent;
+        border-radius: 12px;
+        padding: 12px 24px;
+        transition: all 0.3s ease;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-tertiary) 100%);
+        color: white !important;
+    }
+
+    /* Chart Container */
+    .chart-container {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin: 1rem 0;
     }
 
     /* Hide Streamlit Elements */
@@ -450,10 +400,10 @@ st.markdown(
     header {visibility: hidden;}
     .stDeployButton {visibility: hidden;}
 
-    /* Custom Scrollbar */
+    /* Enhanced Scrollbar */
     ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
+        width: 12px;
+        height: 12px;
     }
 
     ::-webkit-scrollbar-track {
@@ -462,7 +412,7 @@ st.markdown(
     }
 
     ::-webkit-scrollbar-thumb {
-        background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-secondary) 100%);
+        background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-tertiary) 50%, var(--accent-secondary) 100%);
         border-radius: 10px;
         border: 2px solid var(--secondary-bg);
     }
@@ -474,17 +424,27 @@ st.markdown(
     /* Responsive Design */
     @media (max-width: 768px) {
         .main-header h1 {
-            font-size: 2.5rem;
+            font-size: 2.8rem;
         }
         
         .content-card {
-            padding: 1.5rem;
-            margin: 1rem 0;
+            padding: 2rem;
+            margin: 2rem 0;
         }
         
-        .stRadio > div {
-            grid-template-columns: 1fr;
+        .stFileUploader {
+            padding: 3rem 1rem;
         }
+    }
+
+    /* Loading Animations */
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .loading-text {
+        animation: pulse 2s infinite;
     }
     </style>
     """,
@@ -496,7 +456,7 @@ st.markdown(
     """
     <div class="main-header">
         <h1>🚀 AI Vision Studio</h1>
-        <p>Next-generation object detection powered by advanced neural networks</p>
+        <p>Advanced object detection with state-of-the-art neural networks</p>
     </div>
     """,
     unsafe_allow_html=True
@@ -506,25 +466,50 @@ st.markdown(
 st.sidebar.markdown(
     """
     <div class="sidebar-header">
-        <h3>⚡ Control Panel</h3>
+        <h3>⚡ Control Center</h3>
     </div>
     """,
     unsafe_allow_html=True
 )
 
 st.sidebar.markdown("### 🎛️ Model Configuration")
-uploaded_weights = st.sidebar.file_uploader("Upload custom weights (.pt)", type=[
-                                            "pt"], help="Upload your trained YOLOv8 model weights")
+uploaded_weights = st.sidebar.file_uploader(
+    "Upload custom weights (.pt)",
+    type=["pt"],
+    help="Upload your trained YOLOv8 model weights for custom object detection"
+)
 
 st.sidebar.markdown("### 🎯 Detection Settings")
-conf = st.sidebar.slider("Confidence threshold", 0.0, 1.0,
-                         0.4, 0.01, help="Minimum confidence for detections")
-img_size = st.sidebar.selectbox("Image size (px)", [
-                                320, 416, 640, 1280], index=2, help="Input image size for inference")
+conf = st.sidebar.slider(
+    "Confidence threshold",
+    0.0, 1.0, 0.35, 0.01,
+    help="Minimum confidence score for object detection (higher = more selective)"
+)
 
-st.sidebar.markdown("### � Performance Metrics")
+img_size = st.sidebar.selectbox(
+    "Image resolution (px)",
+    [320, 416, 640, 1280],
+    index=2,
+    help="Input image size for inference (higher = more accurate but slower)"
+)
+
+st.sidebar.markdown("### 📊 Model Information")
 st.sidebar.info(
-    "**🧠 Model:** YOLOv8 Nano  \n**📊 Classes:** 80 COCO objects  \n**⚡ Speed:** Real-time  \n**🎯 Accuracy:** High precision")
+    """
+    **🧠 Architecture:** YOLOv8 Nano  
+    **📊 Object Classes:** 80 COCO categories  
+    **⚡ Performance:** Real-time detection  
+    **🎯 Accuracy:** State-of-the-art precision  
+    **💾 Model Size:** ~6MB (optimized)
+    """
+)
+
+# Advanced settings in expander
+with st.sidebar.expander("🔧 Advanced Settings"):
+    iou_threshold = st.slider("IoU Threshold", 0.1, 0.9, 0.45, 0.05,
+                              help="Intersection over Union threshold for Non-Maximum Suppression")
+    max_detections = st.slider("Max Detections", 10, 1000, 300, 10,
+                               help="Maximum number of detections per image")
 
 # -------------------- LOAD MODEL --------------------
 
@@ -556,350 +541,216 @@ def annotate_and_table(results, model):
         if boxes is not None and len(boxes) > 0:
             for c, cf, box in zip(boxes.cls.cpu().numpy(), boxes.conf.cpu().numpy(), boxes.xyxy.cpu().numpy()):
                 name = model.names[int(c)]
-                detections.append({"Class": name, "Confidence": round(
-                    float(cf), 2), "BBox": [round(float(x), 2) for x in box]})
+                x1, y1, x2, y2 = box
+                width = x2 - x1
+                height = y2 - y1
+                area = width * height
+                detections.append({
+                    "Object": name,
+                    "Confidence": f"{float(cf)*100:.1f}%",
+                    "Box Area": f"{int(area)} px²",
+                    "Position": f"({int(x1)}, {int(y1)})",
+                    "Size": f"{int(width)}×{int(height)}"
+                })
     except:
         detections = []
 
     return annotated, pd.DataFrame(detections)
 
 
-# -------------------- MODEL --------------------
+# -------------------- MODEL LOADING --------------------
 weights_to_load = "yolov8n.pt"
 if uploaded_weights:
     weights_to_load = save_uploaded_file(uploaded_weights, suffix=".pt")
-    st.sidebar.success("✅ Custom weights loaded successfully")
+    st.sidebar.success("✅ Custom weights loaded successfully!")
 else:
-    st.sidebar.info("Using pre-trained YOLOv8n weights")
+    st.sidebar.info("📦 Using pre-trained YOLOv8n model")
 
-model = load_model(weights_to_load)
+with st.spinner("🔄 Loading AI model..."):
+    model = load_model(weights_to_load)
 
-# -------------------- MODE SELECTION --------------------
+# -------------------- IMAGE DETECTION --------------------
 st.markdown(
     """
     <div class="content-card">
-        <h3>🎯 Choose Detection Mode</h3>
-        <p>Select your preferred input method for AI-powered object detection</p>
+        <h3>🎯 AI-Powered Object Detection</h3>
+        <p>Upload high-quality images for precise object detection and comprehensive analysis with advanced neural networks</p>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-mode = st.radio(
-    "Detection Mode",
-    ["� Image Analysis", "� Video Processing", "� Live Camera"],
-    horizontal=True,
-    help="Select the type of input you want to process"
+uploaded = st.file_uploader(
+    "📸 Select or drag your image here",
+    type=["jpg", "jpeg", "png", "webp", "bmp", "tiff"],
+    help="Supported formats: JPG, JPEG, PNG, WebP, BMP, TIFF (Max: 200MB)"
 )
 
-# IMAGE MODE
-if mode == "� Image Analysis":
+if uploaded:
+    # Show image info
+    file_details = {
+        "Filename": uploaded.name,
+        "File size": f"{uploaded.size / 1024:.1f} KB",
+        "File type": uploaded.type
+    }
+
+    with st.expander("📋 File Information"):
+        st.json(file_details)
+
+    with st.spinner("🤖 AI is analyzing your image... Please wait"):
+        img = Image.open(uploaded).convert("RGB")
+
+        # Run prediction with advanced settings
+        results = model.predict(
+            np.array(img),
+            conf=conf,
+            imgsz=img_size,
+            iou=iou_threshold,
+            max_det=max_detections
+        )
+        annotated, df = annotate_and_table(results, model)
+
     st.markdown(
         """
         <div class="content-card">
-            <h3>� Image Analysis Engine</h3>
-            <p>Upload high-resolution images for precise object detection and analysis</p>
+            <h3>📊 Detection Results & Analysis</h3>
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    uploaded = st.file_uploader("📎 Drop your image here", type=[
-                                "jpg", "jpeg", "png"], help="Supported: JPG, JPEG, PNG (Max: 200MB)")
+    # Enhanced layout with better proportions
+    col1, col2 = st.columns([3, 2])
 
-    if uploaded:
-        with st.spinner("� AI is analyzing your image..."):
-            img = Image.open(uploaded).convert("RGB")
-            results = model.predict(np.array(img), conf=conf, imgsz=img_size)
-            annotated, df = annotate_and_table(results, model)
+    with col1:
+        # Image display with enhanced tabs
+        tab1, tab2 = st.tabs(["🖼️ Original Image", "🎯 AI Detection Results"])
 
-        st.markdown(
-            """
-            <div class="content-card">
-                <h3>📊 Analysis Results</h3>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        with tab1:
+            st.markdown('<div class="image-container">',
+                        unsafe_allow_html=True)
+            st.image(
+                img, caption=f"Source: {uploaded.name}", use_column_width=True)
 
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            st.markdown("#### 🖼️ Original Image")
-            st.markdown('<div class="image-container">', unsafe_allow_html=True)
-            st.image(img, caption="Source Image", use_column_width=True)
+            # Image statistics
+            img_array = np.array(img)
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                st.metric("Width", f"{img_array.shape[1]} px")
+            with col_b:
+                st.metric("Height", f"{img_array.shape[0]} px")
+            with col_c:
+                st.metric("Channels", img_array.shape[2])
+
             st.markdown('</div>', unsafe_allow_html=True)
-            
+
+        with tab2:
             if annotated is not None:
-                st.markdown("#### 🎯 Detection Results")
-                st.markdown('<div class="image-container">', unsafe_allow_html=True)
-                st.image(annotated, caption="AI Detection Results", use_column_width=True)
+                st.markdown('<div class="image-container">',
+                            unsafe_allow_html=True)
+                st.image(
+                    annotated, caption="AI-Enhanced Detection Results", use_column_width=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-                
-        with col2:
-            if not df.empty:
-                st.markdown("#### 🎯 Detection Summary")
-                st.dataframe(df, use_container_width=True)
-                
-                # Enhanced metrics display
-                col_a, col_b = st.columns(2)
-                with col_a:
+
+                # Detection confidence info
+                if not df.empty:
+                    avg_conf = df['Confidence'].str.rstrip(
+                        '%').astype(float).mean()
+                    st.info(f"🎯 Average detection confidence: {avg_conf:.1f}%")
+            else:
+                st.warning("⚠️ Could not generate annotated image")
+
+    with col2:
+        if not df.empty:
+            st.markdown("#### 📊 Detection Summary")
+
+            # Enhanced metrics in a grid
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.markdown(
+                    f"""
+                    <div class="metric-card">
+                        <h4>🔢 Objects Found</h4>
+                        <h2 style="color: var(--accent-color);">{len(df)}</h2>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            with col_b:
+                if len(df) > 0:
+                    avg_conf = df['Confidence'].str.rstrip(
+                        '%').astype(float).mean()
                     st.markdown(
                         f"""
                         <div class="metric-card">
-                            <h4>🔢 Total Objects</h4>
-                            <h2 style="color: var(--accent-color);">{len(df)}</h2>
+                            <h4>📈 Avg Confidence</h4>
+                            <h2 style="color: var(--accent-secondary);">{avg_conf:.1f}%</h2>
                         </div>
                         """,
                         unsafe_allow_html=True
                     )
-                with col_b:
-                    if len(df) > 0:
-                        avg_conf = df['Confidence'].mean()
-                        st.markdown(
-                            f"""
-                            <div class="metric-card">
-                                <h4>📈 Avg Confidence</h4>
-                                <h2 style="color: var(--accent-secondary);">{avg_conf:.2f}</h2>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                
-                # Object class distribution
-                if not df.empty:
-                    st.markdown("#### 📊 Object Distribution")
-                    class_counts = df['Class'].value_counts()
-                    st.bar_chart(class_counts)
-                    
-            else:
+
+            # Detailed detection table
+            st.markdown("#### 📋 Detailed Results")
+            st.dataframe(df, use_container_width=True, height=300)
+
+            # Object class distribution
+            st.markdown("#### 📊 Object Distribution")
+            object_counts = df['Object'].value_counts()
+
+            st.markdown('<div class="chart-container">',
+                        unsafe_allow_html=True)
+            st.bar_chart(object_counts)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Top detected objects summary
+            st.markdown("#### 🏆 Detection Summary")
+            for idx, (obj_name, count) in enumerate(object_counts.head(5).items()):
+                obj_df = df[df['Object'] == obj_name]
+                avg_conf = obj_df['Confidence'].str.rstrip(
+                    '%').astype(float).mean()
+
+                confidence_color = "🟢" if avg_conf >= 80 else "🟡" if avg_conf >= 60 else "🟠"
                 st.markdown(
-                    """
-                    <div class="content-card" style="text-align: center;">
-                        <h4>🔍 No Objects Detected</h4>
-                        <p>Try adjusting the confidence threshold or upload a different image</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                    f"**{idx+1}.** {confidence_color} **{obj_name}**: {count} object(s) • {avg_conf:.1f}% confidence"
                 )
 
-# VIDEO MODE
-elif mode == "� Video Processing":
-    st.markdown(
-        """
-        <div class="content-card">
-            <h3>� Video Processing Engine</h3>
-            <p>Upload video files for advanced frame-by-frame object detection and analysis</p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    uploaded_vid = st.file_uploader("🎥 Drop your video here", type=[
-                                    "mp4", "mov", "avi", "mkv"], help="Supported: MP4, MOV, AVI, MKV (Max: 500MB)")
-
-    if uploaded_vid:
-        tmp = save_uploaded_file(uploaded_vid)
-
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            st.markdown("#### 📹 Source Video")
-            st.video(tmp)
-        
-        with col2:
-            st.markdown("#### 🎛️ Processing Controls")
-            process_button = st.button("🚀 Start AI Processing", use_container_width=True)
-            
-            if process_button:
-                with st.spinner("🎬 AI is processing your video... This may take several minutes"):
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    
-                    project_dir = tempfile.mkdtemp()
-                    
-                    # Update progress simulation
-                    for i in range(100):
-                        progress_bar.progress(i + 1)
-                        status_text.text(f'Processing frame {i + 1}/100...')
-                        
-                    results = model.predict(
-                        source=tmp, conf=conf, imgsz=img_size, project=project_dir, name="run", save=True)
-
-                    try:
-                        out_dir = str(results[0].save_dir)
-                        vids = glob.glob(os.path.join(out_dir, "*"))
-                        vids = [v for v in vids if Path(v).suffix.lower() in [
-                            ".mp4", ".avi", ".mov", ".mkv"]]
-                        if vids:
-                            st.markdown(
-                                """
-                                <div class="content-card">
-                                    <h3>✅ Processing Complete!</h3>
-                                    <p>Your video has been enhanced with AI object detection</p>
-                                </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
-                            
-                            st.markdown("#### 🎯 Enhanced Video with AI Detection")
-                            st.video(vids[0])
-
-                            col_a, col_b = st.columns(2)
-                            with col_a:
-                                st.download_button(
-                                    label="� Download Enhanced Video",
-                                    data=open(vids[0], 'rb').read(),
-                                    file_name=f"ai_enhanced_{uploaded_vid.name}",
-                                    mime="video/mp4",
-                                    use_container_width=True
-                                )
-                            with col_b:
-                                st.markdown(
-                                    """
-                                    <div class="metric-card">
-                                        <h4>🎉 Success!</h4>
-                                        <p>Ready to download</p>
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True
-                                )
-                    except Exception as e:
-                        st.error(f"⚠️ Processing failed: {str(e)}")
-                        st.info("💡 Try using a smaller video file or different format")
-
-# WEBCAM MODE
-elif mode == "� Live Camera":
-    st.markdown(
-        """
-        <div class="content-card">
-            <h3>� Real-time AI Camera</h3>
-            <p>Experience live object detection with your camera feed in real-time</p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    col1, col2 = st.columns([3, 1])
-
-    with col2:
-        st.markdown("#### 🎮 Camera Controls")
-        start_webcam = st.button("� Start Live Detection", use_container_width=True)
-        stop_webcam = st.button("⏹ Stop Camera", use_container_width=True)
-        
-        st.markdown("#### 📊 Live Analytics")
-        fps_placeholder = st.empty()
-        detection_placeholder = st.empty()
-        confidence_placeholder = st.empty()
-        
-        st.markdown("#### ⚙️ Quick Settings")
-        live_conf = st.slider("Live Confidence", 0.1, 1.0, conf, 0.05)
-
-    with col1:
-        if start_webcam:
+        else:
             st.markdown(
-                """
-                <div class="content-card" style="border: 2px solid var(--accent-color); text-align: center;">
-                    <h4>🔴 LIVE DETECTION ACTIVE</h4>
-                    <p>AI is analyzing your camera feed in real-time</p>
+                f"""
+                <div class="content-card" style="text-align: center; background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.1) 100%); border-color: rgba(255, 193, 7, 0.4);">
+                    <h4>🔍 No Objects Detected</h4>
+                    <p>The AI model couldn't detect any objects with the current confidence threshold.</p>
+                    <div style="margin: 1rem 0;">
+                        <strong>💡 Try these suggestions:</strong><br>
+                        • Lower the confidence threshold (currently {conf:.0%})<br>
+                        • Use a higher resolution image<br>
+                        • Ensure objects are clearly visible<br>
+                        • Try a different image with common objects
+                    </div>
+                    <small style="opacity: 0.8;">Model: YOLOv8n • Threshold: {conf:.1%} • Resolution: {img_size}px</small>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
-            
-            cap = cv2.VideoCapture(0)
-
-            if not cap.isOpened():
-                st.error("❌ Camera access denied. Please check your camera permissions and try again.")
-                st.info("💡 Make sure no other application is using your camera")
-            else:
-                stframe = st.empty()
-                frame_count = 0
-                total_detections = 0
-                confidence_sum = 0
-
-                while True:
-                    ret, frame = cap.read()
-                    if not ret:
-                        st.warning("⚠️ Camera connection lost")
-                        break
-
-                    frame_count += 1
-                    results = model.predict(frame, conf=live_conf, imgsz=img_size)
-                    annotated, df = annotate_and_table(results, model)
-
-                    if annotated is not None:
-                        # Add frame overlay with stats
-                        overlay_frame = annotated.copy()
-                        stframe.image(overlay_frame, channels="RGB", use_column_width=True)
-
-                    # Update live statistics
-                    current_detections = len(df) if not df.empty else 0
-                    total_detections += current_detections
-                    
-                    if not df.empty:
-                        confidence_sum += df['Confidence'].mean()
-
-                    with col2:
-                        fps_placeholder.markdown(
-                            f"""
-                            <div class="metric-card">
-                                <h4>📹 Frames</h4>
-                                <h2 style="color: var(--accent-color);">{frame_count}</h2>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                        
-                        detection_placeholder.markdown(
-                            f"""
-                            <div class="metric-card">
-                                <h4>🎯 Current Objects</h4>
-                                <h2 style="color: var(--accent-secondary);">{current_detections}</h2>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                        
-                        if total_detections > 0:
-                            avg_conf = confidence_sum / max(1, frame_count)
-                            confidence_placeholder.markdown(
-                                f"""
-                                <div class="metric-card">
-                                    <h4>📈 Avg Confidence</h4>
-                                    <h2 style="color: var(--accent-color);">{avg_conf:.2f}</h2>
-                                </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
-
-                    if stop_webcam:
-                        break
-
-                cap.release()
-                st.markdown(
-                    """
-                    <div class="content-card" style="text-align: center;">
-                        <h4>✅ Live Session Ended</h4>
-                        <p>Camera disconnected successfully</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
 
 # -------------------- FOOTER --------------------
 st.markdown("---")
 st.markdown(
     """
-    <div class="content-card" style="text-align: center; margin-top: 3rem;">
+    <div class="content-card" style="text-align: center; margin-top: 4rem;">
         <h4>🚀 AI Vision Studio</h4>
-        <p>Powered by YOLOv8 • Built with Streamlit • Next-gen Computer Vision Technology</p>
-        <p style="font-size: 0.9rem; color: var(--text-secondary);">
-            � Experience the future of AI • 🌐 <a href="#" style="color: var(--accent-color);">Documentation</a> • 📧 <a href="#" style="color: var(--accent-secondary);">Support</a>
+        <p style="font-size: 1.1rem;">Powered by <strong>YOLOv8</strong> • Built with <strong>Streamlit</strong> • Next-generation Computer Vision</p>
+        <p style="font-size: 0.95rem; color: var(--text-secondary); margin-top: 1.5rem;">
+            ✨ Experience the future of AI-powered object detection<br>
+            🌐 <a href="#" style="color: var(--accent-color); text-decoration: none;">Documentation</a> • 
+            📧 <a href="#" style="color: var(--accent-secondary); text-decoration: none;">Support</a> • 
+            🔗 <a href="#" style="color: var(--accent-tertiary); text-decoration: none;">GitHub</a>
         </p>
-        <div style="margin-top: 1rem;">
-            <span style="color: var(--accent-color);">●</span>
-            <span style="color: var(--accent-secondary);">●</span>
-            <span style="color: var(--accent-color);">●</span>
+        <div style="margin-top: 2rem; display: flex; justify-content: center; gap: 15px;">
+            <span style="color: var(--accent-color); font-size: 1.5rem;">●</span>
+            <span style="color: var(--accent-tertiary); font-size: 1.5rem;">●</span>
+            <span style="color: var(--accent-secondary); font-size: 1.5rem;">●</span>
         </div>
     </div>
     """,
