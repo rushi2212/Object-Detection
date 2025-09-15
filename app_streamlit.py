@@ -8,9 +8,14 @@ import glob
 import pandas as pd
 from pathlib import Path
 
+# Set environment variable to prevent OpenGL issues
+os.environ['OPENCV_IO_ENABLE_OPENEXR'] = '0'
+
 # Import with error handling
 try:
     import cv2
+    # Force OpenCV to use a headless backend
+    cv2.setUseOptimized(True)
 except ImportError as e:
     st.error(f"OpenCV import failed: {e}")
     st.stop()
@@ -624,21 +629,24 @@ if mode == "� Image Analysis":
         col1, col2 = st.columns([2, 1])
         with col1:
             st.markdown("#### 🖼️ Original Image")
-            st.markdown('<div class="image-container">', unsafe_allow_html=True)
+            st.markdown('<div class="image-container">',
+                        unsafe_allow_html=True)
             st.image(img, caption="Source Image", use_column_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
-            
+
             if annotated is not None:
                 st.markdown("#### 🎯 Detection Results")
-                st.markdown('<div class="image-container">', unsafe_allow_html=True)
-                st.image(annotated, caption="AI Detection Results", use_column_width=True)
+                st.markdown('<div class="image-container">',
+                            unsafe_allow_html=True)
+                st.image(annotated, caption="AI Detection Results",
+                         use_column_width=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-                
+
         with col2:
             if not df.empty:
                 st.markdown("#### 🎯 Detection Summary")
                 st.dataframe(df, use_container_width=True)
-                
+
                 # Enhanced metrics display
                 col_a, col_b = st.columns(2)
                 with col_a:
@@ -663,13 +671,13 @@ if mode == "� Image Analysis":
                             """,
                             unsafe_allow_html=True
                         )
-                
+
                 # Object class distribution
                 if not df.empty:
                     st.markdown("#### 📊 Object Distribution")
                     class_counts = df['Class'].value_counts()
                     st.bar_chart(class_counts)
-                    
+
             else:
                 st.markdown(
                     """
@@ -700,27 +708,28 @@ elif mode == "� Video Processing":
         tmp = save_uploaded_file(uploaded_vid)
 
         col1, col2 = st.columns([2, 1])
-        
+
         with col1:
             st.markdown("#### 📹 Source Video")
             st.video(tmp)
-        
+
         with col2:
             st.markdown("#### 🎛️ Processing Controls")
-            process_button = st.button("🚀 Start AI Processing", use_container_width=True)
-            
+            process_button = st.button(
+                "🚀 Start AI Processing", use_container_width=True)
+
             if process_button:
                 with st.spinner("🎬 AI is processing your video... This may take several minutes"):
                     progress_bar = st.progress(0)
                     status_text = st.empty()
-                    
+
                     project_dir = tempfile.mkdtemp()
-                    
+
                     # Update progress simulation
                     for i in range(100):
                         progress_bar.progress(i + 1)
                         status_text.text(f'Processing frame {i + 1}/100...')
-                        
+
                     results = model.predict(
                         source=tmp, conf=conf, imgsz=img_size, project=project_dir, name="run", save=True)
 
@@ -739,8 +748,9 @@ elif mode == "� Video Processing":
                                 """,
                                 unsafe_allow_html=True
                             )
-                            
-                            st.markdown("#### 🎯 Enhanced Video with AI Detection")
+
+                            st.markdown(
+                                "#### 🎯 Enhanced Video with AI Detection")
                             st.video(vids[0])
 
                             col_a, col_b = st.columns(2)
@@ -764,7 +774,8 @@ elif mode == "� Video Processing":
                                 )
                     except Exception as e:
                         st.error(f"⚠️ Processing failed: {str(e)}")
-                        st.info("💡 Try using a smaller video file or different format")
+                        st.info(
+                            "💡 Try using a smaller video file or different format")
 
 # WEBCAM MODE
 elif mode == "� Live Camera":
@@ -782,14 +793,15 @@ elif mode == "� Live Camera":
 
     with col2:
         st.markdown("#### 🎮 Camera Controls")
-        start_webcam = st.button("� Start Live Detection", use_container_width=True)
+        start_webcam = st.button(
+            "� Start Live Detection", use_container_width=True)
         stop_webcam = st.button("⏹ Stop Camera", use_container_width=True)
-        
+
         st.markdown("#### 📊 Live Analytics")
         fps_placeholder = st.empty()
         detection_placeholder = st.empty()
         confidence_placeholder = st.empty()
-        
+
         st.markdown("#### ⚙️ Quick Settings")
         live_conf = st.slider("Live Confidence", 0.1, 1.0, conf, 0.05)
 
@@ -804,11 +816,12 @@ elif mode == "� Live Camera":
                 """,
                 unsafe_allow_html=True
             )
-            
+
             cap = cv2.VideoCapture(0)
 
             if not cap.isOpened():
-                st.error("❌ Camera access denied. Please check your camera permissions and try again.")
+                st.error(
+                    "❌ Camera access denied. Please check your camera permissions and try again.")
                 st.info("💡 Make sure no other application is using your camera")
             else:
                 stframe = st.empty()
@@ -823,18 +836,20 @@ elif mode == "� Live Camera":
                         break
 
                     frame_count += 1
-                    results = model.predict(frame, conf=live_conf, imgsz=img_size)
+                    results = model.predict(
+                        frame, conf=live_conf, imgsz=img_size)
                     annotated, df = annotate_and_table(results, model)
 
                     if annotated is not None:
                         # Add frame overlay with stats
                         overlay_frame = annotated.copy()
-                        stframe.image(overlay_frame, channels="RGB", use_column_width=True)
+                        stframe.image(overlay_frame, channels="RGB",
+                                      use_column_width=True)
 
                     # Update live statistics
                     current_detections = len(df) if not df.empty else 0
                     total_detections += current_detections
-                    
+
                     if not df.empty:
                         confidence_sum += df['Confidence'].mean()
 
@@ -848,7 +863,7 @@ elif mode == "� Live Camera":
                             """,
                             unsafe_allow_html=True
                         )
-                        
+
                         detection_placeholder.markdown(
                             f"""
                             <div class="metric-card">
@@ -858,7 +873,7 @@ elif mode == "� Live Camera":
                             """,
                             unsafe_allow_html=True
                         )
-                        
+
                         if total_detections > 0:
                             avg_conf = confidence_sum / max(1, frame_count)
                             confidence_placeholder.markdown(
