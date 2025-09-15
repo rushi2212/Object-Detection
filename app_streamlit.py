@@ -1,5 +1,6 @@
 # app_streamlit.py
-import subprocess, sys
+import subprocess
+import sys
 
 # Ensure ultralytics is installed
 try:
@@ -21,6 +22,14 @@ import os
 import glob
 import pandas as pd
 from pathlib import Path
+
+# WebRTC for browser webcam (works on Hugging Face Spaces) / fallback snapshot
+try:
+    from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+    import av
+    HAS_WEBRTC = True
+except Exception:
+    HAS_WEBRTC = False
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="AI Object Detection",
@@ -522,7 +531,7 @@ conf = st.sidebar.slider("Confidence threshold", 0.0, 1.0,
 img_size = st.sidebar.selectbox("Image size (px)", [
                                 320, 416, 640, 1280], index=2, help="Input image size for inference")
 
-st.sidebar.markdown("### � Performance Metrics")
+st.sidebar.markdown("### 📈 Performance Metrics")
 st.sidebar.info(
     "**🧠 Model:** YOLOv8 Nano  \n**📊 Classes:** 80 COCO objects  \n**⚡ Speed:** Real-time  \n**🎯 Accuracy:** High precision")
 
@@ -587,17 +596,17 @@ st.markdown(
 
 mode = st.radio(
     "Detection Mode",
-    ["� Image Analysis", "� Video Processing", "� Live Camera"],
+    ["🖼️ Image Analysis", "🎞️ Video Processing", "📡 Live Camera"],
     horizontal=True,
     help="Select the type of input you want to process"
 )
 
 # IMAGE MODE
-if mode == "� Image Analysis":
+if mode == "🖼️ Image Analysis":
     st.markdown(
         """
         <div class="content-card">
-            <h3>� Image Analysis Engine</h3>
+            <h3>🖼️ Image Analysis Engine</h3>
             <p>Upload high-resolution images for precise object detection and analysis</p>
         </div>
         """,
@@ -608,7 +617,7 @@ if mode == "� Image Analysis":
                                 "jpg", "jpeg", "png"], help="Supported: JPG, JPEG, PNG (Max: 200MB)")
 
     if uploaded:
-        with st.spinner("� AI is analyzing your image..."):
+        with st.spinner("🤖 AI is analyzing your image..."):
             img = Image.open(uploaded).convert("RGB")
             results = model.predict(np.array(img), conf=conf, imgsz=img_size)
             annotated, df = annotate_and_table(results, model)
@@ -625,21 +634,24 @@ if mode == "� Image Analysis":
         col1, col2 = st.columns([2, 1])
         with col1:
             st.markdown("#### 🖼️ Original Image")
-            st.markdown('<div class="image-container">', unsafe_allow_html=True)
+            st.markdown('<div class="image-container">',
+                        unsafe_allow_html=True)
             st.image(img, caption="Source Image", use_column_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
-            
+
             if annotated is not None:
                 st.markdown("#### 🎯 Detection Results")
-                st.markdown('<div class="image-container">', unsafe_allow_html=True)
-                st.image(annotated, caption="AI Detection Results", use_column_width=True)
+                st.markdown('<div class="image-container">',
+                            unsafe_allow_html=True)
+                st.image(annotated, caption="AI Detection Results",
+                         use_column_width=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-                
+
         with col2:
             if not df.empty:
                 st.markdown("#### 🎯 Detection Summary")
                 st.dataframe(df, use_container_width=True)
-                
+
                 # Enhanced metrics display
                 col_a, col_b = st.columns(2)
                 with col_a:
@@ -664,13 +676,13 @@ if mode == "� Image Analysis":
                             """,
                             unsafe_allow_html=True
                         )
-                
+
                 # Object class distribution
                 if not df.empty:
                     st.markdown("#### 📊 Object Distribution")
                     class_counts = df['Class'].value_counts()
                     st.bar_chart(class_counts)
-                    
+
             else:
                 st.markdown(
                     """
@@ -683,11 +695,11 @@ if mode == "� Image Analysis":
                 )
 
 # VIDEO MODE
-elif mode == "� Video Processing":
+elif mode == "🎞️ Video Processing":
     st.markdown(
         """
         <div class="content-card">
-            <h3>� Video Processing Engine</h3>
+            <h3>🎞️ Video Processing Engine</h3>
             <p>Upload video files for advanced frame-by-frame object detection and analysis</p>
         </div>
         """,
@@ -701,27 +713,28 @@ elif mode == "� Video Processing":
         tmp = save_uploaded_file(uploaded_vid)
 
         col1, col2 = st.columns([2, 1])
-        
+
         with col1:
             st.markdown("#### 📹 Source Video")
             st.video(tmp)
-        
+
         with col2:
             st.markdown("#### 🎛️ Processing Controls")
-            process_button = st.button("🚀 Start AI Processing", use_container_width=True)
-            
+            process_button = st.button(
+                "🚀 Start AI Processing", use_container_width=True)
+
             if process_button:
                 with st.spinner("🎬 AI is processing your video... This may take several minutes"):
                     progress_bar = st.progress(0)
                     status_text = st.empty()
-                    
+
                     project_dir = tempfile.mkdtemp()
-                    
+
                     # Update progress simulation
                     for i in range(100):
                         progress_bar.progress(i + 1)
                         status_text.text(f'Processing frame {i + 1}/100...')
-                        
+
                     results = model.predict(
                         source=tmp, conf=conf, imgsz=img_size, project=project_dir, name="run", save=True)
 
@@ -740,14 +753,15 @@ elif mode == "� Video Processing":
                                 """,
                                 unsafe_allow_html=True
                             )
-                            
-                            st.markdown("#### 🎯 Enhanced Video with AI Detection")
+
+                            st.markdown(
+                                "#### 🎯 Enhanced Video with AI Detection")
                             st.video(vids[0])
 
                             col_a, col_b = st.columns(2)
                             with col_a:
                                 st.download_button(
-                                    label="� Download Enhanced Video",
+                                    label="📥 Download Enhanced Video",
                                     data=open(vids[0], 'rb').read(),
                                     file_name=f"ai_enhanced_{uploaded_vid.name}",
                                     mime="video/mp4",
@@ -765,126 +779,93 @@ elif mode == "� Video Processing":
                                 )
                     except Exception as e:
                         st.error(f"⚠️ Processing failed: {str(e)}")
-                        st.info("💡 Try using a smaller video file or different format")
+                        st.info(
+                            "💡 Try using a smaller video file or different format")
 
 # WEBCAM MODE
-elif mode == "� Live Camera":
+elif mode == "📡 Live Camera":
     st.markdown(
         """
         <div class="content-card">
-            <h3>� Real-time AI Camera</h3>
-            <p>Experience live object detection with your camera feed in real-time</p>
+            <h3>📡 Real-time AI Camera</h3>
+            <p>Browser-based webcam streaming via WebRTC (compatible with Hugging Face Spaces)</p>
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    col1, col2 = st.columns([3, 1])
+    st.markdown("#### ⚙️ Settings")
+    live_conf = st.slider("Live Confidence", 0.1, 1.0, conf, 0.05)
 
-    with col2:
-        st.markdown("#### 🎮 Camera Controls")
-        start_webcam = st.button("� Start Live Detection", use_container_width=True)
-        stop_webcam = st.button("⏹ Stop Camera", use_container_width=True)
-        
-        st.markdown("#### 📊 Live Analytics")
-        fps_placeholder = st.empty()
-        detection_placeholder = st.empty()
-        confidence_placeholder = st.empty()
-        
-        st.markdown("#### ⚙️ Quick Settings")
-        live_conf = st.slider("Live Confidence", 0.1, 1.0, conf, 0.05)
+    # Define transformer only if WebRTC available
+    if HAS_WEBRTC:
+        class YoloTransformer(VideoTransformerBase):
+            def __init__(self):
+                self.frame_count = 0
+                self.total_conf = 0.0
 
-    with col1:
-        if start_webcam:
-            st.markdown(
-                """
-                <div class="content-card" style="border: 2px solid var(--accent-color); text-align: center;">
-                    <h4>🔴 LIVE DETECTION ACTIVE</h4>
-                    <p>AI is analyzing your camera feed in real-time</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-            
-            cap = cv2.VideoCapture(0)
+            def transform(self, frame):
+                img = frame.to_ndarray(format="bgr24")
+                results = model.predict(
+                    img, conf=live_conf, imgsz=img_size, verbose=False)
+                res = results[0]
+                plotted = res.plot()
+                # stats (optional could push to session_state)
+                self.frame_count += 1
+                try:
+                    boxes = res.boxes
+                    if boxes is not None and len(boxes) > 0:
+                        self.total_conf += float(boxes.conf.mean().item())
+                except Exception:
+                    pass
+                return plotted
 
-            if not cap.isOpened():
-                st.error("❌ Camera access denied. Please check your camera permissions and try again.")
-                st.info("💡 Make sure no other application is using your camera")
-            else:
-                stframe = st.empty()
-                frame_count = 0
-                total_detections = 0
-                confidence_sum = 0
+        webrtc_ctx = webrtc_streamer(
+            key="yolo-live",
+            video_transformer_factory=YoloTransformer,
+            media_stream_constraints={"video": True, "audio": False},
+            async_transform=True,
+        )
 
-                while True:
-                    ret, frame = cap.read()
-                    if not ret:
-                        st.warning("⚠️ Camera connection lost")
-                        break
-
-                    frame_count += 1
-                    results = model.predict(frame, conf=live_conf, imgsz=img_size)
-                    annotated, df = annotate_and_table(results, model)
-
-                    if annotated is not None:
-                        # Add frame overlay with stats
-                        overlay_frame = annotated.copy()
-                        stframe.image(overlay_frame, channels="RGB", use_column_width=True)
-
-                    # Update live statistics
-                    current_detections = len(df) if not df.empty else 0
-                    total_detections += current_detections
-                    
-                    if not df.empty:
-                        confidence_sum += df['Confidence'].mean()
-
-                    with col2:
-                        fps_placeholder.markdown(
-                            f"""
-                            <div class="metric-card">
-                                <h4>📹 Frames</h4>
-                                <h2 style="color: var(--accent-color);">{frame_count}</h2>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                        
-                        detection_placeholder.markdown(
-                            f"""
-                            <div class="metric-card">
-                                <h4>🎯 Current Objects</h4>
-                                <h2 style="color: var(--accent-secondary);">{current_detections}</h2>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                        
-                        if total_detections > 0:
-                            avg_conf = confidence_sum / max(1, frame_count)
-                            confidence_placeholder.markdown(
-                                f"""
-                                <div class="metric-card">
-                                    <h4>📈 Avg Confidence</h4>
-                                    <h2 style="color: var(--accent-color);">{avg_conf:.2f}</h2>
-                                </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
-
-                    if stop_webcam:
-                        break
-
-                cap.release()
+        if webrtc_ctx.video_transformer:
+            fc = webrtc_ctx.video_transformer.frame_count
+            avg_conf = 0.0
+            if webrtc_ctx.video_transformer.frame_count > 0 and webrtc_ctx.video_transformer.total_conf > 0:
+                avg_conf = webrtc_ctx.video_transformer.total_conf / \
+                    webrtc_ctx.video_transformer.frame_count
+            col_a, col_b = st.columns(2)
+            with col_a:
                 st.markdown(
-                    """
-                    <div class="content-card" style="text-align: center;">
-                        <h4>✅ Live Session Ended</h4>
-                        <p>Camera disconnected successfully</p>
+                    f"""
+                    <div class=\"metric-card\">
+                        <h4>📹 Frames</h4>
+                        <h2 style=\"color: var(--accent-color);\">{fc}</h2>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
+            with col_b:
+                st.markdown(
+                    f"""
+                    <div class=\"metric-card\">
+                        <h4>📈 Avg Confidence</h4>
+                        <h2 style=\"color: var(--accent-secondary);\">{avg_conf:.2f}</h2>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+    else:
+        st.warning(
+            "streamlit-webrtc not installed. Falling back to snapshot capture.")
+        snap = st.camera_input("Capture a frame")
+        if snap:
+            img = Image.open(snap).convert("RGB")
+            results = model.predict(
+                np.array(img), conf=live_conf, imgsz=img_size)
+            annotated, df = annotate_and_table(results, model)
+            st.image(annotated, caption="Detections", use_column_width=True)
+            if not df.empty:
+                st.dataframe(df)
 
 # -------------------- FOOTER --------------------
 st.markdown("---")
@@ -894,7 +875,7 @@ st.markdown(
         <h4>🚀 AI Vision Studio</h4>
         <p>Powered by YOLOv8 • Built with Streamlit • Next-gen Computer Vision Technology</p>
         <p style="font-size: 0.9rem; color: var(--text-secondary);">
-            � Experience the future of AI • 🌐 <a href="#" style="color: var(--accent-color);">Documentation</a> • 📧 <a href="#" style="color: var(--accent-secondary);">Support</a>
+            🚀 Experience the future of AI • 🌐 <a href="#" style="color: var(--accent-color);">Documentation</a> • 📧 <a href="#" style="color: var(--accent-secondary);">Support</a>
         </p>
         <div style="margin-top: 1rem;">
             <span style="color: var(--accent-color);">●</span>
