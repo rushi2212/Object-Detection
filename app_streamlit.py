@@ -1,6 +1,18 @@
 # app_streamlit.py
+import subprocess, sys
+
+# Ensure ultralytics is installed
+try:
+    from ultralytics import YOLO
+except ImportError:
+    subprocess.check_call([
+        sys.executable, "-m", "pip", "install",
+        "ultralytics==8.3.25",
+        "opencv-python-headless"
+    ])
+    from ultralytics import YOLO
+
 import streamlit as st
-from ultralytics import YOLO
 import numpy as np
 from PIL import Image
 import cv2

@@ -1,0 +1,2 @@
+pip install streamlit==1.38.0 ultralytics==8.3.0 opencv-python-headless pillow pandas pyngrok
+run command -> python -m streamlit run project.py
