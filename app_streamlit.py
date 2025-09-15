@@ -7,12 +7,16 @@ import glob
 import pandas as pd
 from pathlib import Path
 
-# Set environment variable to prevent OpenGL issues
+# Set environment variables to prevent issues
 os.environ['OPENCV_IO_ENABLE_OPENEXR'] = '0'
+os.environ['NUMPY_DISABLE_WARNING'] = '1'
 
 # Import numpy first with error handling
 try:
     import numpy as np
+    # Suppress numpy warnings about compatibility
+    import warnings
+    warnings.filterwarnings('ignore', category=UserWarning, module='numpy')
 except ImportError as e:
     st.error(f"Numpy import failed: {e}")
     st.stop()
