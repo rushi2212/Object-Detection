@@ -1,6 +1,5 @@
 # app_streamlit.py
 import streamlit as st
-import numpy as np
 from PIL import Image
 import tempfile
 import os
@@ -10,6 +9,13 @@ from pathlib import Path
 
 # Set environment variable to prevent OpenGL issues
 os.environ['OPENCV_IO_ENABLE_OPENEXR'] = '0'
+
+# Import numpy first with error handling
+try:
+    import numpy as np
+except ImportError as e:
+    st.error(f"Numpy import failed: {e}")
+    st.stop()
 
 # Import with error handling
 try:
