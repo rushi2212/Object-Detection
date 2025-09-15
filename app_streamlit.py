@@ -1,14 +1,25 @@
 # app_streamlit.py
-from ultralytics import YOLO
 import streamlit as st
 import numpy as np
 from PIL import Image
-import cv2
 import tempfile
 import os
 import glob
 import pandas as pd
 from pathlib import Path
+
+# Import with error handling
+try:
+    import cv2
+except ImportError as e:
+    st.error(f"OpenCV import failed: {e}")
+    st.stop()
+
+try:
+    from ultralytics import YOLO
+except ImportError as e:
+    st.error(f"Ultralytics import failed: {e}")
+    st.stop()
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="AI Object Detection",
